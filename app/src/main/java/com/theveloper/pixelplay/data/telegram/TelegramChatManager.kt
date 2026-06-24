@@ -246,6 +246,45 @@ class TelegramChatManager @Inject constructor(
         }
     }
 
+    suspend fun getArchiveMessages(chatId: Long, threadId: Long? = null, offsetMessageId: Long = 0L, limit: Int = 100): Pair<List<TdApi.Message>, Long> {
+        return try {
+            val request = TdApi.SearchChatMessages().apply {
+                this.chatId = chatId
+                this.query = ""
+                this.senderId = null
+                this.fromMessageId = offsetMessageId
+                this.offset = 0
+                this.limit = limit
+                this.filter = null // NO FILTER: We want all messages
+
+                if (threadId != null) {
+                    var topicSet = false
+                    try {
+                        val f = this.javaClass.getDeclaredField("topicId")
+                        f.isAccessible = true
+                        f.set(this, TdApi.MessageTopicForum(threadId.toInt()))
+                        topicSet = true
+                    } catch (_: NoSuchFieldException) { }
+
+                    if (!topicSet) {
+                        try {
+                            val f = this.javaClass.getDeclaredField("messageThreadId")
+                            f.isAccessible = true
+                            f.set(this, threadId)
+                            topicSet = true
+                        } catch (_: NoSuchFieldException) { }
+                    }
+                }
+            }
+
+            val response = clientManager.sendRequest<TdApi.FoundChatMessages>(request)
+            Pair(response.messages.toList(), response.nextFromMessageId)
+        } catch (e: Exception) {
+            Timber.e(e, "Error fetching archive messages for chat $chatId (thread=$threadId)")
+            Pair(emptyList(), 0L)
+        }
+    }
+
     suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message? {
         return try {
             clientManager.sendRequest<TdApi.Message>(TdApi.GetMessage(chatId, messageId))
