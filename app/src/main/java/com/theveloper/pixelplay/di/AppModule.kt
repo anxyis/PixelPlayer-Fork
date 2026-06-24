@@ -165,7 +165,8 @@ object AppModule {
             PixelPlayDatabase.MIGRATION_38_39,
             PixelPlayDatabase.MIGRATION_39_40,
             PixelPlayDatabase.MIGRATION_40_41,
-            PixelPlayDatabase.MIGRATION_41_42
+            PixelPlayDatabase.MIGRATION_41_42,
+            PixelPlayDatabase.MIGRATION_42_43
         )
             .addCallback(PixelPlayDatabase.createRuntimeArtifactsCallback())
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
@@ -353,6 +354,12 @@ object AppModule {
     @Provides
     fun provideTelegramDao(database: PixelPlayDatabase): com.theveloper.pixelplay.data.database.TelegramDao {
         return database.telegramDao()
+    }
+
+    @Singleton
+    @Provides
+    fun provideArchiveDao(database: PixelPlayDatabase): com.theveloper.pixelplay.data.database.ArchiveDao {
+        return database.archiveDao()
     }
 
     @Singleton

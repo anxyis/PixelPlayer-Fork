@@ -34,9 +34,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         JellyfinSongEntity::class,
         JellyfinPlaylistEntity::class,
         AiCacheEntity::class,
-        AiUsageEntity::class
+        AiUsageEntity::class,
+        ArchiveChannelEntity::class,
+        ArchiveTopicEntity::class,
+        ArchiveMessageEntity::class,
+        ArchiveMediaEntity::class,
+        ArchiveDownloadStateEntity::class,
+        ArchiveMediaFtsEntity::class
     ],
-    version = 42,
+    version = 43,
     exportSchema = true
 )
 abstract class PixelPlayDatabase : RoomDatabase() {
@@ -51,6 +57,7 @@ abstract class PixelPlayDatabase : RoomDatabase() {
     abstract fun neteaseDao(): NeteaseDao
     abstract fun gdriveDao(): GDriveDao
     abstract fun localPlaylistDao(): LocalPlaylistDao
+    abstract fun archiveDao(): ArchiveDao
     abstract fun qqmusicDao(): QqMusicDao
     abstract fun navidromeDao(): NavidromeDao
     abstract fun jellyfinDao(): JellyfinDao
@@ -1529,5 +1536,96 @@ abstract class PixelPlayDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_42_43 = object : Migration(42, 43) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `archive_channels` (
+                        `chat_id` INTEGER NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `username` TEXT,
+                        `type` TEXT NOT NULL,
+                        `last_sync_time` INTEGER NOT NULL,
+                        `photo_path` TEXT,
+                        PRIMARY KEY(`chat_id`)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `archive_topics` (
+                        `id` TEXT NOT NULL,
+                        `chat_id` INTEGER NOT NULL,
+                        `thread_id` INTEGER NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `last_sync_time` INTEGER NOT NULL,
+                        `icon_emoji` TEXT,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_archive_topics_chat_id` ON `archive_topics` (`chat_id`)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `archive_messages` (
+                        `id` TEXT NOT NULL,
+                        `chat_id` INTEGER NOT NULL,
+                        `thread_id` INTEGER,
+                        `message_id` INTEGER NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_archive_messages_chat_id` ON `archive_messages` (`chat_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_archive_messages_thread_id` ON `archive_messages` (`thread_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_archive_messages_chat_id_message_id` ON `archive_messages` (`chat_id`, `message_id`)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `archive_media` (
+                        `id` TEXT NOT NULL,
+                        `message_id` TEXT NOT NULL,
+                        `file_id` INTEGER NOT NULL,
+                        `file_name` TEXT NOT NULL,
+                        `caption` TEXT,
+                        `mime_type` TEXT NOT NULL,
+                        `file_extension` TEXT NOT NULL,
+                        `size` INTEGER NOT NULL,
+                        `local_path` TEXT,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_archive_media_message_id` ON `archive_media` (`message_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_archive_media_file_id` ON `archive_media` (`file_id`)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `archive_download_state` (
+                        `file_id` INTEGER NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `downloaded_bytes` INTEGER NOT NULL,
+                        `total_bytes` INTEGER NOT NULL,
+                        PRIMARY KEY(`file_id`)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS `archive_media_fts` USING FTS4(
+                        `file_name`, `caption`, `file_extension`, content=`archive_media`
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_archive_media_fts_BEFORE_UPDATE BEFORE UPDATE ON `archive_media` BEGIN DELETE FROM `archive_media_fts` WHERE `docid`=OLD.`rowid`; END
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_archive_media_fts_BEFORE_DELETE BEFORE DELETE ON `archive_media` BEGIN DELETE FROM `archive_media_fts` WHERE `docid`=OLD.`rowid`; END
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_archive_media_fts_AFTER_UPDATE AFTER UPDATE ON `archive_media` BEGIN INSERT INTO `archive_media_fts`(`docid`, `file_name`, `caption`, `file_extension`) VALUES (NEW.`rowid`, NEW.`file_name`, NEW.`caption`, NEW.`file_extension`); END
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_archive_media_fts_AFTER_INSERT AFTER INSERT ON `archive_media` BEGIN INSERT INTO `archive_media_fts`(`docid`, `file_name`, `caption`, `file_extension`) VALUES (NEW.`rowid`, NEW.`file_name`, NEW.`caption`, NEW.`file_extension`); END
+                """.trimIndent())
+            }
+        }
     }
 }
