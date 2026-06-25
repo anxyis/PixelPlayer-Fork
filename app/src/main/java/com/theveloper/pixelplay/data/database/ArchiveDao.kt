@@ -57,6 +57,9 @@ interface ArchiveDao {
     @Query("SELECT * FROM archive_download_state WHERE file_id = :fileId")
     fun getDownloadState(fileId: Int): Flow<ArchiveDownloadStateEntity?>
 
+    @Query("SELECT * FROM archive_download_state WHERE status IN ('QUEUED', 'DOWNLOADING')")
+    fun getActiveDownloads(): Flow<List<ArchiveDownloadStateEntity>>
+
     // --- Transactions ---
     @Transaction
     suspend fun clearAll() {

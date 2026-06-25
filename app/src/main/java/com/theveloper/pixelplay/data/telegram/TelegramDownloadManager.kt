@@ -23,6 +23,12 @@ import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.Data
+import androidx.work.WorkManager
+import androidx.work.ExistingWorkPolicy
+import android.content.Context
+import com.theveloper.pixelplay.data.download.DownloadWorker
 
 @Singleton
 class TelegramDownloadManager @Inject constructor(
@@ -62,6 +68,22 @@ class TelegramDownloadManager @Inject constructor(
         } catch (e: Exception) {
             null
         }
+    }
+
+    fun enqueueWorkManagerDownload(context: Context, fileId: Int) {
+        val inputData = Data.Builder()
+            .putInt(DownloadWorker.KEY_FILE_ID, fileId)
+            .build()
+            
+        val request = OneTimeWorkRequestBuilder<DownloadWorker>()
+            .setInputData(inputData)
+            .build()
+            
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "Download_$fileId",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
     }
 
     suspend fun isFileCached(fileId: Int): Boolean {

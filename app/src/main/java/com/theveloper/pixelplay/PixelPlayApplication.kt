@@ -43,15 +43,6 @@ class PixelPlayApplication : Application(), ImageLoaderFactory, Configuration.Pr
     lateinit var imageLoader: dagger.Lazy<ImageLoader>
 
     @Inject
-    lateinit var telegramCoilFetcherFactory: dagger.Lazy<com.theveloper.pixelplay.data.image.TelegramCoilFetcher.Factory>
-
-    @Inject
-    lateinit var navidromeCoilFetcherFactory: dagger.Lazy<com.theveloper.pixelplay.data.image.NavidromeCoilFetcher.Factory>
-
-    @Inject
-    lateinit var jellyfinCoilFetcherFactory: dagger.Lazy<com.theveloper.pixelplay.data.image.JellyfinCoilFetcher.Factory>
-
-    @Inject
     lateinit var localArtworkCoilFetcherFactory: dagger.Lazy<com.theveloper.pixelplay.data.image.LocalArtworkCoilFetcher.Factory>
 
     @Inject
@@ -136,9 +127,6 @@ class PixelPlayApplication : Application(), ImageLoaderFactory, Configuration.Pr
         return imageLoader.get().newBuilder()
             .components {
                 add(localArtworkCoilFetcherFactory.get())
-                add(telegramCoilFetcherFactory.get())
-                add(navidromeCoilFetcherFactory.get())
-                add(jellyfinCoilFetcherFactory.get())
             }
             .build()
     }
